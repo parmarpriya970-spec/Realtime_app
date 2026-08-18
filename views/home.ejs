@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="/style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+</head>
+
+<body class="container1">
+
+    <div class="header1">
+    </div>
+
+    <div class="content1">
+
+        <p>Hello</p>
+        <p>Hola</p>
+        <p>Bonjour</p>
+        <p>नमस्ते</p>
+        <p>Ciao</p>
+        <p>Hallo</p>
+        <p>Olá</p>
+        <p>你好</p>
+        <p>こんにちは</p>
+        <p>안녕하세요</p>
+        
+
+        <h3>
+          Welcome <%= current_user_name %>
+        </h3>
+       
+
+
+     
+
+        <div class="welcome-line"></div>
+
+        <div class="welcome-features">
+            <p>
+                <i class="fas fa-comment-dots"></i>
+                Start a conversation
+            </p>
+
+            <p>
+                <i class="fas fa-users"></i>
+                Connect with your groups
+            </p>
+
+            <p>
+                <i class="fas fa-bolt"></i>
+                Chat in real time
+            </p>
+        </div>
+
+        <div class="welcome-line"></div>
+
+        <p class="welcome-hint">
+            Pick someone from the<br>
+            sidebar and let the<br>
+            conversation begin.
+        </p>
+
+        <div class="form1">
+            <%- include('partials/sidebar') %>
+        </div>
+
+    </div>
+
+
+   
+
+</body>
+</html>
+

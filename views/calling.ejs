@@ -1,0 +1,367 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title><%= call_type === "audio" ? "Voice Call" : "Video Call" %></title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+
+<div class="calling-page">
+    <div class="calling-header">
+        <h2>
+            <i class="<%= call_type === "audio" ? "fas fa-phone" : "fas fa-video" %>"></i>
+            <%= call_type === "audio" ? "Voice Call" : "Video Call" %>
+        </h2>
+        <p id="call-status">Calling...</p>
+    </div>
+
+    <div class="call-video-container">
+        <video id="remoteVideo" autoplay playsinline></video>
+        <video id="localVideo" autoplay playsinline muted></video>
+
+        <div id="voiceCallScreen" class="voice-call-screen">
+            <div class="call-user-icon">
+                <i class="fas fa-user"></i>
+            </div>
+            <h2><%= receiver_name %></h2>
+            <p id="voice-status">Calling...</p>
+        </div>
+    </div>
+
+    <div class="call-controls">
+        <button id="muteBtn" class="call-control-btn">
+            <i class="fas fa-microphone"></i>
+        </button>
+
+        <button id="endCallBtn" class="call-control-btn end-call-btn">
+            <i class="fas fa-phone"></i>
+        </button>
+    </div>
+</div>
+
+<script src="/socket.io/socket.io.js"></script>
+
+<script>
+const socket = window.appSocket || io();
+window.appSocket = socket;
+
+const sender_id = "<%= sender_id %>";
+const receiver_id = "<%= receiver_id %>";
+const sender_name = "<%= sender_name %>";
+const receiver_name = "<%= receiver_name %>";
+const role = "<%= role %>";
+const call_type = "<%= call_type %>";
+
+const localVideo = document.getElementById("localVideo");
+const remoteVideo = document.getElementById("remoteVideo");
+const voiceCallScreen = document.getElementById("voiceCallScreen");
+const callStatus = document.getElementById("call-status");
+const voiceStatus = document.getElementById("voice-status");
+const muteBtn = document.getElementById("muteBtn");
+const endCallBtn = document.getElementById("endCallBtn");
+
+let localStream;
+let peerConnection;
+let callEnded = false;
+let pendingCandidates = [];
+
+const configuration = {
+    iceServers: [
+        {
+            urls: "stun:stun.l.google.com:19302"
+        }
+    ]
+};
+
+// Set call type UI
+if (call_type === "audio") {
+    localVideo.style.display = "none";
+    remoteVideo.style.display = "none";
+    voiceCallScreen.style.display = "block";
+} else {
+    voiceCallScreen.style.display = "none";
+}
+
+// Identify user
+function identifyUser() {
+    socket.emit("identify", {
+        user_id: sender_id,
+        name: sender_name
+    });
+}
+
+if (socket.connected) {
+    identifyUser();
+}
+
+socket.on("connect", identifyUser);
+
+// Create WebRTC connection
+function createPeerConnection() {
+    peerConnection = new RTCPeerConnection(configuration);
+
+    peerConnection.ontrack = (event) => {
+        if (event.streams && event.streams[0]) {
+            remoteVideo.srcObject = event.streams[0];
+        }
+
+        callStatus.textContent = "Connected";
+        voiceStatus.textContent = "Connected";
+    };
+
+    peerConnection.onicecandidate = (event) => {
+        if (event.candidate) {
+            socket.emit("ice-candidate", {
+                sender_id: sender_id,
+                target_id: receiver_id,
+                candidate: event.candidate
+            });
+        }
+    };
+
+    peerConnection.onconnectionstatechange = () => {
+        if (peerConnection.connectionState === "connected") {
+            callStatus.textContent = "Connected";
+            voiceStatus.textContent = "Connected";
+        }
+
+        if (peerConnection.connectionState === "connecting") {
+            callStatus.textContent = "Connecting...";
+            voiceStatus.textContent = "Connecting...";
+        }
+
+        if (peerConnection.connectionState === "failed") {
+            callStatus.textContent = "Connection failed";
+            voiceStatus.textContent = "Connection failed";
+        }
+    };
+}
+
+// Start microphone/camera
+async function startMedia() {
+    try {
+        localStream = await navigator.mediaDevices.getUserMedia({
+            video: call_type === "video",
+            audio: true
+        });
+
+        if (call_type === "video") {
+            localVideo.srcObject = localStream;
+        }
+
+        localStream.getTracks().forEach((track) => {
+            peerConnection.addTrack(track, localStream);
+        });
+    } catch (error) {
+        console.error("Media error:", error);
+        alert("Please allow microphone and camera permission.");
+        endCall(false);
+    }
+}
+
+// Caller creates offer
+async function makeCall() {
+    try {
+        const offer = await peerConnection.createOffer();
+
+        await peerConnection.setLocalDescription(offer);
+
+        socket.emit("call-user", {
+            sender_id: sender_id,
+            receiver_id: receiver_id,
+            offer: offer,
+            call_type: call_type
+        });
+
+        callStatus.textContent = "Calling...";
+        voiceStatus.textContent = "Calling...";
+    } catch (error) {
+        console.error("Offer error:", error);
+    }
+}
+
+// Receiver answers
+async function answerCall() {
+    try {
+        const storedOffer = sessionStorage.getItem("incomingOffer");
+
+        if (!storedOffer) {
+            console.error("Incoming offer not found");
+            return;
+        }
+
+        const offer = JSON.parse(storedOffer);
+
+        sessionStorage.removeItem("incomingOffer");
+
+        await peerConnection.setRemoteDescription(
+            new RTCSessionDescription(offer)
+        );
+
+        await addPendingCandidates();
+
+        const answer = await peerConnection.createAnswer();
+
+        await peerConnection.setLocalDescription(answer);
+
+        socket.emit("answer-call", {
+            caller_id: receiver_id,
+            receiver_id: sender_id,
+            answer: answer
+        });
+
+        callStatus.textContent = "Connecting...";
+        voiceStatus.textContent = "Connecting...";
+    } catch (error) {
+        console.error("Answer error:", error);
+    }
+}
+
+// Receive answer
+socket.on("call-answer", async (data) => {
+    try {
+        await peerConnection.setRemoteDescription(
+            new RTCSessionDescription(data.answer)
+        );
+
+        await addPendingCandidates();
+    } catch (error) {
+        console.error("Answer error:", error);
+    }
+});
+
+// Receive ICE candidate
+socket.on("ice-candidate", async (data) => {
+    try {
+        if (peerConnection.remoteDescription) {
+            await peerConnection.addIceCandidate(
+                new RTCIceCandidate(data.candidate)
+            );
+        } else {
+            pendingCandidates.push(data.candidate);
+        }
+    } catch (error) {
+        console.error("ICE error:", error);
+    }
+});
+
+// Add waiting ICE candidates
+async function addPendingCandidates() {
+    for (const candidate of pendingCandidates) {
+        try {
+            await peerConnection.addIceCandidate(
+                new RTCIceCandidate(candidate)
+            );
+        } catch (error) {
+            console.error("ICE error:", error);
+        }
+    }
+
+    pendingCandidates = [];
+}
+
+// Call rejected
+socket.on("call-rejected", () => {
+    alert("Call rejected");
+    endCall(false);
+});
+
+// User is offline
+socket.on("call-failed", () => {
+    alert("User is offline");
+    endCall(false);
+});
+
+// Other user ended call
+socket.on("call-ended", () => {
+    endCall(false);
+});
+
+// Mute microphone
+muteBtn.addEventListener("click", () => {
+    if (!localStream) {
+        return;
+    }
+
+    const audioTrack = localStream.getAudioTracks()[0];
+
+    if (!audioTrack) {
+        return;
+    }
+
+    audioTrack.enabled = !audioTrack.enabled;
+
+    if (audioTrack.enabled) {
+        muteBtn.innerHTML = '<i class="fas fa-microphone"></i>';
+    } else {
+        muteBtn.innerHTML = '<i class="fas fa-microphone-slash"></i>';
+    }
+});
+
+// End call
+function endCall(notifyRemote = true) {
+    if (callEnded) {
+        return;
+    }
+
+    callEnded = true;
+
+    if (notifyRemote) {
+        socket.emit("end-call", {
+            sender_id: sender_id,
+            target_id: receiver_id
+        });
+    }
+
+    if (localStream) {
+        localStream.getTracks().forEach((track) => {
+            track.stop();
+        });
+
+        localStream = null;
+    }
+
+    if (peerConnection) {
+        peerConnection.close();
+        peerConnection = null;
+    }
+
+    localVideo.srcObject = null;
+    remoteVideo.srcObject = null;
+
+    sessionStorage.removeItem("incomingOffer");
+
+    setTimeout(() => {
+        window.history.back();
+    }, 300);
+}
+
+endCallBtn.addEventListener("click", () => {
+    endCall(true);
+});
+
+// Start
+async function start() {
+    createPeerConnection();
+
+    await startMedia();
+
+    if (callEnded) {
+        return;
+    }
+
+    if (role === "caller") {
+        await makeCall();
+    }
+
+    if (role === "receiver") {
+        await answerCall();
+    }
+}
+
+start();
+</script>
+
+</body>
+</html>

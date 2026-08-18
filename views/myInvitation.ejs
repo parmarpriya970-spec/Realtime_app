@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Invitations</title>
+    <link rel="stylesheet" href="/style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body class="container1">
+    <%- include("partials/sidebar") %>
+
+    <div class="header1">
+        <h1 class="page-title">My Invitations</h1>
+    </div>
+
+    <div class="content1">
+        <% if (message) { %>
+            <p class="invite-banner"><%= message %></p>
+        <% } %>
+
+        <section class="invite-section">
+            <h2><i class="fas fa-user-friends"></i> Friend Requests Sent</h2>
+
+            <% if (!invitations || invitations.length === 0) { %>
+                <p class="invite-empty">No friend requests sent.</p>
+            <% } else { %>
+                <div class="invite-list">
+                    <% invitations.forEach(invite => { %>
+                        <div class="invite-card">
+                            <div class="invite-info">
+                                <span class="invite-avatar"><i class="fas fa-user"></i></span>
+                                <p>Request to <strong><%= invite.name %></strong></p>
+                            </div>
+                            <span class="invite-status pending">
+                                <%= invite.status == 0 ? "Pending" : "Accepted" %>
+                            </span>
+                        </div>
+                    <% }) %>
+                </div>
+            <% } %>
+        </section>
+
+        <section class="invite-section">
+            <h2><i class="fas fa-users"></i> Group Invites Sent</h2>
+
+            <% if (!group_invitations || group_invitations.length === 0) { %>
+                <p class="invite-empty">No group invitations sent.</p>
+            <% } else { %>
+                <div class="invite-list">
+                    <% group_invitations.forEach(group_invite => { %>
+                        <div class="invite-card">
+                            <div class="invite-info">
+                                <span class="invite-avatar"><i class="fas fa-users"></i></span>
+                                <p>
+                                    Invited <strong><%= group_invite.member_name %></strong>
+                                    to <strong><%= group_invite.group_name %></strong>
+                                </p>
+                            </div>
+                            <span class="invite-status pending">
+                                <%= group_invite.status == 0 ? "Pending" : "Accepted" %>
+                            </span>
+                        </div>
+                    <% }) %>
+                </div>
+            <% } %>
+        </section>
+    </div>
+</body>
+</html>

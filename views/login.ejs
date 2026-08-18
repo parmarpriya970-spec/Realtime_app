@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+
+    <!-- CSS-only switch (no JavaScript) -->
+    <input type="checkbox" id="auth-switch" class="auth-switch">
+
+    <div class="container">
+
+        <div class="auth-forms-layer">
+
+            <!-- LOGIN SIDE -->
+            <div class="form-panel login-panel">
+                <div class="header">
+                    <i class="fa-solid fa-user"></i>
+                    <h1>Login</h1>
+                </div>
+
+                <div class="content">
+                    <form action="/login" method="post">
+                        <label><i class="fa-solid fa-user"></i> Username</label>
+                        <input type="text" name="name" placeholder="Enter your name">
+                        <label><i class="fa-solid fa-lock"></i> PIN</label>
+                        <input type="password" name="pin" placeholder="Enter your PIN">
+
+                        <button type="submit">Login</button>
+                        <a href="/forget">Forget Password?</a>
+                    </form>
+                </div>
+
+                <div class="footer">
+                    <p>Don't have an account?</p>
+                    <label for="auth-switch" class="auth-toggle">Sign up</label>
+                </div>
+            </div>
+
+            <!-- REGISTER SIDE -->
+            <div class="form-panel register-panel">
+                <div class="header">
+                    <i class="fa-solid fa-user"></i>
+                    <h1>Register</h1>
+                </div>
+
+                <div class="content">
+                    <form action="/register" method="post">
+                        <label><i class="fa-solid fa-user"></i> Username</label>
+                        <input type="text" name="name" placeholder="Enter your username">
+                        <label><i class="fa-solid fa-lock"></i> PIN</label>
+                        <input type="password" name="pin" placeholder="Enter your PIN">
+                        <label><i class="fa-solid fa-calendar"></i> Date of Birth</label>
+                        <input type="date" name="date_of_birth" placeholder="Enter your date of birth">
+                        <label><i class="fa-solid fa-phone"></i> Mobile</label>
+                        <input type="number" name="mobile" placeholder="Enter your mobile number">
+                        <button type="submit">Register</button>
+                    </form>
+                </div>
+
+                <div class="footer">
+                    <p>Already have an account? </p>
+                    <label for="auth-switch" class="auth-toggle">Login</label>
+                </div>
+            </div>
+
+        </div>
+
+        <%- include("partials/welcome") %>
+
+    </div>
+
+</body>
+</html>

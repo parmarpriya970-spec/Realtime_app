@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Forget Password</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+
+    <div class="container">
+
+        <div class="auth-forms-layer">
+
+            <div class="form-panel login-panel">
+                <div class="header">
+                    <i class="fa-solid fa-key"></i>
+                    <h1>Forget Password</h1>
+                </div>
+
+                <div class="content">
+                    <form action="/forget" method="post">
+                        <label><i class="fa-solid fa-user"></i> Username</label>
+                        <input type="text" name="name" placeholder="Enter your username" required>
+
+                        <label><i class="fa-solid fa-phone"></i> Mobile</label>
+                        <input type="tel" name="mobile" placeholder="Enter your mobile number" required>
+
+                        <% if (message) { %>
+                            <p class="auth-message"><%= message %></p>
+                        <% } %>
+
+                        <button type="submit">Continue</button>
+                       
+                    </form>
+                </div>
+
+                <div class="footer">
+                    <p>Remember your PIN?</p>
+                    <a href="/login">Login</a>
+                </div>
+            </div>
+
+            <div class="form-panel register-panel" aria-hidden="true"></div>
+
+        </div>
+
+        <%- include("partials/welcome") %>
+
+    </div>
+
+</body>
+</html>

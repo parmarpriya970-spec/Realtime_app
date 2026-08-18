@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Group Profile</title>
+    <link rel="stylesheet" href="/style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body class="container1">
+    <%- include("partials/sidebar") %>
+
+    <div class="header1">
+        <h1 class="page-title">Group Profile</h1>
+    </div>
+
+    <div class="content1">
+        <div class="profile-shell">
+            <div class="profile-banner"></div>
+
+            <div class="profile-body">
+                <form class="profile-photo-form" action="/uploadgroupprofile" method="POST" enctype="multipart/form-data">
+                    <input type="hidden" name="group_id" value="<%= group.group_id %>">
+                    <div class="profile-avatar-wrap">
+                        <% if (group && group.group_profile) { %>
+                            <img class="profile-avatar-lg" src="/profile/<%= group.group_profile %>" alt="<%= group.group_name %>">
+                        <% } else { %>
+                            <div class="profile-avatar-lg profile-avatar-fallback">
+                                <i class="fas fa-users"></i>
+                            </div>
+                        <% } %>
+
+                        <label class="profile-camera-btn" title="Change photo">
+                            <input type="file" name="profile_photo" accept="image/*" required>
+                            <i class="fas fa-camera"></i>
+                        </label>
+                    </div>
+
+                    <button type="submit" class="profile-photo-submit">
+                        <i class="fas fa-cloud-arrow-up"></i>
+                        Update Photo
+                    </button>
+                </form>
+
+                <h2 class="profile-name"><%= group.group_name %></h2>
+
+                <div class="profile-divider"></div>
+
+                <form class="profile-edit-form" action="/updategroupprofile" method="POST">
+                    <input type="hidden" name="group_id" value="<%= group.group_id %>">
+                    <p class="profile-edit-title">Edit Group</p>
+                    <label for="group-name"> Name</label>
+                    <div class="profile-edit-row">
+                        <input id="group-name" type="text" name="group_name" value="<%= group.group_name %>" placeholder="Enter group name" required>
+                        <button type="submit">Save</button>
+                    </div>
+                </form>
+
+                <div class="profile-divider"></div>
+
+                <p class="profile-edit-title">Members</p>
+                <div class="group-members-list">
+                    <% members.forEach(result => { %>
+                        <div class="group-member-item">
+                            <span class="friend-avatar">
+                                <% if (result.profile_photo) { %>
+                                    <img src="/profile/<%= result.profile_photo %>" alt="<%= result.name %>">
+                                <% } else { %>
+                                    <i class="fas fa-user"></i>
+                                <% } %>
+                            </span>
+                            <span class="group-member-name">
+                                <%= result.name %>
+                                </span>
+                                <span class="admin-name">
+                                <% if (result.role == 1) { %> Admin<% } %>
+                                </span>
+                        </div>
+                    <% }) %>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

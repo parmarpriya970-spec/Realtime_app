@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="/style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+
+<body>
+    <%- include("partials/sidebar") %>
+
+<%
+    const activeGroup = (typeof group_id !== "undefined" && group_id)
+        ? (groups || []).find((g) => String(g.group_id) === String(group_id))
+        : null;
+%>
+
+<% if (!activeGroup) { %>
+    <div class="chat-header">
+        <h1>Groups</h1>
+       
+    </div>
+    <p class="group-page-hint">Select a group from the sidebar, or use <strong>Create Group</strong> to start one.</p>
+<% } else { %>
+    <a href="/groupprofile/<%= group_id %>" class="chat-header">
+        <span class="chat-header-avatar">
+            <% if (activeGroup.group_profile) { %>
+                <img src="/profile/<%= activeGroup.group_profile %>" alt="<%= activeGroup.group_name %>">
+            <% } else { %>
+                <i class="fas fa-users"></i>
+            <% } %>
+        </span>
+        <div class="chat-header-info">
+            <h1><%= activeGroup.group_name %></h1>
+            <p class="user-status online">Group chat</p>
+        </div>
+    </a>
+
+    <div class="chat-container" id="messages">
+        <% (messages || []).forEach(myMessage => { %>
+            <% if (myMessage.user_id == current_user_id) { %>
+                <div class="send-message">
+                    <p><%= myMessage.message %></p>
+                </div>
+                <div class="send-time">
+                    <span class="message-time" data-date="<%= myMessage.date %>"> <i class="fas fa-clock"></i></span>
+                </div>
+            <% } else { %>
+                <div class="receive-message">
+                    <span class="group-sender-name"><%= myMessage.sender_name %></span>
+                    <p><%= myMessage.message %></p>
+                </div>
+                <div class="receive-time">
+                    <span class="message-time" data-date="<%= myMessage.date %>"> <i class="fa-solid fa-clock"></i></span>
+                </div>
+            <% } %>
+        <% }) %>
+    </div>
+
+    <div id="typing-status" class="typing-status" aria-live="polite"></div>
+
+    <form id="messageForm">
+        <input id="group_id" type="hidden" name="group_id" value="<%= group_id %>">
+        <input id="message" type="text" name="message" placeholder="Type a message ...">
+        <button type="submit"><i class="fas fa-paper-plane"></i></button>
+    </form>
+
+<script>
+const socket = window.appSocket || io();
+window.appSocket = socket;
+
+const sender_id = "<%= current_user_id %>";
+const sender_name = "<%= current_user_name %>";
+const group_id = "<%= group_id %>";
+const messagesDiv = document.getElementById("messages");
+const messageInput = document.getElementById("message");
+const typingStatusEl = document.getElementById("typing-status");
+
+let typingTimeout = null;
+let isTyping = false;
+const typingUsers = {};
+
+function formatMessageTime(dateValue) {
+    const messageDate = new Date(dateValue);
+    const now = new Date();
+    const difference = now - messageDate;
+
+    const seconds = Math.floor(difference / 1000);
+    const minutes = Math.floor(seconds / 60);
+    const hours = Math.floor(minutes / 60);
+
+    if (seconds < 1) {
+        return "Just now";
+    }
+    else if (seconds < 60) {
+        return seconds + (seconds === 1 ? " sec ago" : " secs ago");
+    }
+
+    if (minutes < 60) {
+        return minutes + (minutes === 1 ? " min ago" : " mins ago");
+    }
+
+    if (hours < 24) {
+        return hours + (hours === 1 ? " hr ago" : " hrs ago");
+    }
+
+    return messageDate.toLocaleString("en-IN", {
+        day: "numeric",
+        month: "short",
+        hour: "numeric",
+        minute: "2-digit",
+        hour12: true
+    });
+}
+
+function appendMessage(text, type, name, dateValue) {
+    const timeHtml = `
+        <div class="${type === "send-message" ? "send-time" : "receive-time"}">
+            <span class="message-time" data-date="${dateValue}">${formatMessageTime(dateValue)}</span>
+        </div>
+    `;
+
+    if (type === "receive-message" && name) {
+        messagesDiv.innerHTML += `
+            <div class="${type}">
+                <span class="group-sender-name">${name}</span>
+                <p>${text}</p>
+            </div>
+            ${timeHtml}
+        `;
+    } else {
+        messagesDiv.innerHTML += `
+            <div class="${type}">
+                <p>${text}</p>
+            </div>
+            ${timeHtml}
+        `;
+    }
+
+    messagesDiv.scrollTop = messagesDiv.scrollHeight;
+}
+
+function updateTypingStatus() {
+    const names = Object.values(typingUsers);
+
+    if (!names.length) {
+        typingStatusEl.textContent = "";
+        typingStatusEl.classList.remove("visible");
+        return;
+    }
+
+    typingStatusEl.textContent = names.length === 1
+        ? names[0] + " is typing..."
+        : names.join(", ") + " are typing...";
+    typingStatusEl.classList.add("visible");
+}
+
+function stopTyping() {
+    if (!isTyping) {
+        return;
+    }
+
+    isTyping = false;
+    socket.emit("group_typing_stop", {
+        sender_id: sender_id,
+        group_id: group_id
+    });
+}
+
+function identifyUser() {
+    socket.emit("identify", {
+        user_id: sender_id,
+        name: sender_name
+    });
+    socket.emit("join_group", { group_id: group_id });
+}
+
+if (socket.connected) {
+    identifyUser();
+}
+socket.on("connect", identifyUser);
+
+socket.on("receive_group_message", (data) => {
+    if (String(data.group_id) !== String(group_id)) {
+        return;
+    }
+    if (String(data.sender_id) === String(sender_id)) {
+        return;
+    }
+
+    delete typingUsers[String(data.sender_id)];
+    updateTypingStatus();
+    appendMessage(data.message, "receive-message", data.sender_name, data.date || new Date().toISOString());
+});
+
+socket.on("group_typing_start", (data) => {
+    if (String(data.group_id) !== String(group_id)) {
+        return;
+    }
+    if (String(data.sender_id) === String(sender_id)) {
+        return;
+    }
+
+    typingUsers[String(data.sender_id)] = data.name || "Someone";
+    updateTypingStatus();
+});
+
+socket.on("group_typing_stop", (data) => {
+    if (String(data.group_id) !== String(group_id)) {
+        return;
+    }
+
+    delete typingUsers[String(data.sender_id)];
+    updateTypingStatus();
+});
+
+function emitTypingStart() {
+    socket.emit("group_typing_start", {
+        sender_id: sender_id,
+        group_id: group_id,
+        name: sender_name
+    });
+}
+
+messageInput.addEventListener("input", () => {
+    if (messageInput.value.trim() === "") {
+        clearTimeout(typingTimeout);
+        stopTyping();
+        return;
+    }
+
+    if (!isTyping) {
+        isTyping = true;
+        emitTypingStart();
+    }
+
+    clearTimeout(typingTimeout);
+    typingTimeout = setTimeout(stopTyping, 2000);
+});
+
+messageInput.addEventListener("keydown", () => {
+    if (messageInput.value.trim() === "") {
+        return;
+    }
+
+    if (!isTyping) {
+        isTyping = true;
+        emitTypingStart();
+    }
+
+    clearTimeout(typingTimeout);
+    typingTimeout = setTimeout(stopTyping, 2000);
+});
+
+document.getElementById("messageForm").addEventListener("submit", async (event) => {
+    event.preventDefault();
+
+    const currentGroupId = document.getElementById("group_id").value;
+    const message = messageInput.value.trim();
+
+    if (message === "") {
+        return;
+    }
+
+    clearTimeout(typingTimeout);
+    stopTyping();
+
+    const response = await fetch("/sendgroupmessage", {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+            group_id: currentGroupId,
+            message: message
+        })
+    });
+
+    const data = await response.json();
+
+    if (data.success) {
+        const now = new Date().toISOString();
+        appendMessage(message, "send-message", null, now);
+        messageInput.value = "";
+
+        socket.emit("send_group_message", {
+            sender_id: sender_id,
+            sender_name: sender_name,
+            group_id: currentGroupId,
+            message: message,
+            date: now
+        });
+    }
+});
+
+messagesDiv.scrollTop = messagesDiv.scrollHeight;
+
+document.querySelectorAll(".message-time").forEach((element) => {
+    element.textContent = formatMessageTime(element.dataset.date);
+});
+</script>
+<% } %>
+</body>
+</html>

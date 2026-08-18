@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Invitations</title>
+    <link rel="stylesheet" href="/style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body class="container1">
+    <%- include("partials/sidebar") %>
+
+    <div class="header1">
+        <h1 class="page-title">Invitations</h1>
+    </div>
+
+    <div class="content1">
+        <% if (message) { %>
+            <p class="invite-banner"><%= message %></p>
+        <% } %>
+
+        <section class="invite-section">
+            <h2><i class="fas fa-user-plus"></i> Friend Invitations</h2>
+
+            <% if (!requests || requests.length === 0) { %>
+                <p class="invite-empty">No friend invitations.</p>
+            <% } else { %>
+                <div class="invite-list">
+                    <% requests.forEach(request => { %>
+                        <div class="invite-card">
+                            <div class="invite-info">
+                                <span class="invite-avatar"><i class="fas fa-user"></i></span>
+                                <p><strong><%= request.name %></strong> sent you a friend request</p>
+                            </div>
+                            <div class="invite-actions">
+                                <form action="/updatefriend" method="POST">
+                                    <input type="hidden" name="unique_id" value="<%= request.unique_id %>">
+                                    <button type="submit" class="invite-btn accept">Accept</button>
+                                </form>
+                                <form action="/rejectfriend" method="POST">
+                                    <input type="hidden" name="unique_id" value="<%= request.unique_id %>">
+                                    <button type="submit" class="invite-btn reject">Reject</button>
+                                </form>
+                            </div>
+                        </div>
+                    <% }) %>
+                </div>
+            <% } %>
+        </section>
+
+        <section class="invite-section">
+            <h2><i class="fas fa-users"></i> Group Invitations</h2>
+
+            <% if (!group_requests || group_requests.length === 0) { %>
+                <p class="invite-empty">No group invitations.</p>
+            <% } else { %>
+                <div class="invite-list">
+                    <% group_requests.forEach(group_request => { %>
+                        <div class="invite-card">
+                            <div class="invite-info">
+                                <span class="invite-avatar"><i class="fas fa-users"></i></span>
+                                <p>
+                                    <strong><%= group_request.inviter_name %></strong>
+                                    invited you to join
+                                    <strong><%= group_request.group_name %></strong>
+                                </p>
+                            </div>
+                            <div class="invite-actions">
+                                <form action="/acceptgroup" method="POST">
+                                    <input type="hidden" name="group_id" value="<%= group_request.group_id %>">
+                                    <button type="submit" class="invite-btn accept">Accept</button>
+                                </form>
+                                <form action="/rejectgroup" method="POST">
+                                    <input type="hidden" name="group_id" value="<%= group_request.group_id %>">
+                                    <button type="submit" class="invite-btn reject">Reject</button>
+                                </form>
+                            </div>
+                        </div>
+                    <% }) %>
+                </div>
+            <% } %>
+        </section>
+    </div>
+</body>
+</html>

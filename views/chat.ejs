@@ -1,0 +1,435 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="/style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+
+<body>
+<%- include("partials/sidebar") %>
+
+<div class="chat-header">
+    <span class="chat-header-avatar">
+        <% if (typeof receiver_photo !== "undefined" && receiver_photo) { %>
+            <img src="/profile/<%= receiver_photo %>" alt="<%= receiver_name %>">
+        <% } else { %>
+            <i class="fas fa-user"></i>
+        <% } %>
+    </span>
+
+    <div class="chat-header-info">
+        <h1><%= receiver_name %></h1>
+        <p id="user-status" class="user-status offline">Offline</p>
+    </div>
+
+    <div class="chat-call-buttons">
+        <button id="audioCallBtn" class="chat-call-btn" title="Voice Call">
+            <i class="fas fa-phone"></i>
+        </button>
+
+        <button id="videoCallBtn" class="chat-call-btn" title="Video Call">
+            <i class="fas fa-video"></i>
+        </button>
+    </div>
+</div>
+
+<div class="chat-container" id="messages">
+    <% messages.forEach(myMessage => { %>
+
+        <% if (myMessage.user_id == sender_id) { %>
+            <div class="send-message">
+            <p><%= myMessage.message %></p>
+            
+            </div>
+            <div class="send-time">
+            <span class="message-time" data-date="<%= myMessage.date %>"> <i class="fas fa-clock"></i></span>
+            </div>
+        <% } else { %>
+            <div class="receive-message">
+            <p><%= myMessage.message %></p>
+           
+            </div>
+            <div class="receive-time">
+            <span class="message-time" data-date="<%= myMessage.date %>"> <i class="fa-solid fa-clock"></i></span>
+            </div>
+        <% } %>
+    
+    <% }) %>
+    </div>
+
+    <div id="typing-status" class="typing-status" aria-live="polite"></div>
+
+    <form id="messageForm" >
+        <input id="receiver_id" type="hidden" name="receiver_id" value="<%= receiver_id %>">
+        <input id="message" type="text" name="message" placeholder="Type a message ...">
+        <button type="submit"><i class="fas fa-paper-plane"></i></button>
+    </form>
+    <div id="incomingCallModal" class="incoming-call-modal">
+        <div class="incoming-call-box">
+            <div class="incoming-call-icon">
+                <i id="incomingCallIcon" class="fas fa-video"></i>
+            </div>
+    
+            <h2 id="incomingCallName">Incoming Call</h2>
+            <p id="incomingCallType">Video Call</p>
+    
+            <div class="incoming-call-buttons">
+                <button id="rejectCallBtn" class="reject-call-btn">
+                    <i class="fas fa-phone"></i>
+                </button>
+    
+                <button id="acceptCallBtn" class="accept-call-btn">
+                    <i class="fas fa-phone"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+
+<script>
+
+const socket = window.appSocket || io();
+window.appSocket = socket;
+const sender_id = "<%= sender_id %>";
+const receiver_id = "<%= receiver_id %>";
+const sender_name = "<%= sender_name %>";
+const receiver_name = "<%= receiver_name %>";
+const messagesDiv = document.getElementById("messages");
+const messageInput = document.getElementById("message");
+const userStatusEl = document.getElementById("user-status");
+const typingStatusEl = document.getElementById("typing-status");
+
+let typingTimeout = null;
+let isTyping = false;
+
+function formatMessageTime(dateValue) {
+    const messageDate = new Date(dateValue);
+    const now = new Date();
+    const difference = now - messageDate;
+
+    const seconds = Math.floor(difference / 1000);
+    const minutes = Math.floor(seconds / 60);
+    const hours = Math.floor(minutes / 60);
+
+    if (seconds < 1) {
+        return "Just now";
+    }
+    else if (seconds < 60) {
+        return seconds + (seconds === 1 ? " sec ago" : " secs ago");
+    }
+
+
+    if (minutes < 60) {
+        return minutes + (minutes === 1 ? " min ago" : " mins ago");
+    }
+
+    if (hours < 24) {
+        return hours + (hours === 1 ? " hr ago" : " hrs ago");
+    }
+
+    return messageDate.toLocaleString("en-IN", {
+        day: "numeric",
+        month: "short",
+        hour: "numeric",
+        minute: "2-digit",
+        hour12: true
+    });
+}
+
+function appendMessage(text, type, dateValue) {
+    const date = dateValue || new Date().toISOString();
+    messagesDiv.innerHTML += `
+        <div class="${type}">
+            <p>${text}</p>
+        </div>
+        <div class="${type === "send-message" ? "send-time" : "receive-time"}">
+            <span class="message-time" data-date="${date}">${formatMessageTime(date)}</span>
+        </div>
+    `;
+    messagesDiv.scrollTop = messagesDiv.scrollHeight;
+}
+
+function setOnlineStatus(isOnline) {
+    userStatusEl.textContent = isOnline ? "Online" : "Offline";
+    userStatusEl.classList.toggle("online", isOnline);
+    userStatusEl.classList.toggle("offline", !isOnline);
+}
+
+function applyChatPresence(onlineUsers) {
+    const isOnline = (onlineUsers || []).some(
+        (user) => String(user.user_id) === String(receiver_id)
+    );
+    setOnlineStatus(isOnline);
+}
+
+function stopTyping() {
+    if (!isTyping) {
+        return;
+    }
+
+    isTyping = false;
+    socket.emit("typing_stop", {
+        sender_id: sender_id,
+        receiver_id: receiver_id
+    });
+}
+
+function identifyUser() {
+    socket.emit("identify", {
+        user_id: sender_id,
+        name: sender_name
+    });
+}
+
+if (socket.connected) {
+    identifyUser();
+}
+socket.on("connect", identifyUser);
+
+socket.on("online_users", applyChatPresence);
+applyChatPresence(window.__onlineUsers || []);
+window.addEventListener("presence:online_users", (event) => {
+    applyChatPresence(event.detail);
+});
+
+socket.on("user_online", (data) => {
+    if (String(data.user_id) === String(receiver_id)) {
+        setOnlineStatus(true);
+    }
+});
+
+socket.on("user_offline", (data) => {
+    if (String(data.user_id) === String(receiver_id)) {
+        setOnlineStatus(false);
+        hideTyping();
+    }
+});
+window.addEventListener("presence:user_online", (event) => {
+    if (String(event.detail.user_id) === String(receiver_id)) {
+        setOnlineStatus(true);
+    }
+});
+window.addEventListener("presence:user_offline", (event) => {
+    if (String(event.detail.user_id) === String(receiver_id)) {
+        setOnlineStatus(false);
+        hideTyping();
+    }
+});
+
+function showTyping(name) {
+    typingStatusEl.textContent = (name || receiver_name) + " is typing...";
+    typingStatusEl.classList.add("visible");
+}
+
+function hideTyping() {
+    typingStatusEl.textContent = "";
+    typingStatusEl.classList.remove("visible");
+}
+
+socket.on("typing_start", (data) => {
+    if (String(data.sender_id) === String(receiver_id)) {
+        showTyping(data.name);
+    }
+});
+
+socket.on("typing_stop", (data) => {
+    if (String(data.sender_id) === String(receiver_id)) {
+        hideTyping();
+    }
+});
+
+socket.on("receive_message", (data) => {
+    // Only show if this chat is with the sender
+    if (String(data.sender_id) === String(receiver_id)) {
+        hideTyping();
+        appendMessage(data.message, "receive-message", data.date || new Date().toISOString());
+    }
+});
+
+function emitTypingStart() {
+    socket.emit("typing_start", {
+        sender_id: sender_id,
+        receiver_id: receiver_id,
+        name: sender_name
+    });
+}
+
+messageInput.addEventListener("input", () => {
+    if (messageInput.value.trim() === "") {
+        clearTimeout(typingTimeout);
+        stopTyping();
+        return;
+    }
+
+    if (!isTyping) {
+        isTyping = true;
+        emitTypingStart();
+    }
+
+    clearTimeout(typingTimeout);
+    typingTimeout = setTimeout(stopTyping, 2000);
+});
+
+messageInput.addEventListener("keydown", () => {
+    if (messageInput.value.trim() === "") {
+        return;
+    }
+    // Keep refreshing typing signal while keys are pressed
+    if (!isTyping) {
+        isTyping = true;
+        emitTypingStart();
+    }
+    clearTimeout(typingTimeout);
+    typingTimeout = setTimeout(stopTyping, 2000);
+});
+
+document.getElementById("messageForm").addEventListener("submit", async (event) => {
+    event.preventDefault();
+
+    const currentReceiverId = document.getElementById("receiver_id").value;
+    const message = messageInput.value.trim();
+
+    if (message === "") {
+        return;
+    }
+
+    clearTimeout(typingTimeout);
+    stopTyping();
+
+    const response = await fetch("/sendmessage", {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+            receiver_id: currentReceiverId,
+            message: message
+        })
+    });
+
+    const data = await response.json();
+
+    if (data.success) {
+        const now = new Date().toISOString();
+        appendMessage(message, "send-message", now);
+        messageInput.value = "";
+
+        // Notify the other user in realtime
+        socket.emit("send_message", {
+            sender_id: sender_id,
+            receiver_id: currentReceiverId,
+            message: message,
+            date: now
+        });
+    }
+});
+
+
+document.querySelectorAll(".message-time").forEach(element => {
+    element.textContent = formatMessageTime(element.dataset.date);
+});
+let incomingCallData = null;
+
+const incomingCallModal =
+    document.getElementById("incomingCallModal");
+
+const incomingCallName =
+    document.getElementById("incomingCallName");
+
+const incomingCallType =
+    document.getElementById("incomingCallType");
+
+const incomingCallIcon =
+    document.getElementById("incomingCallIcon");
+
+const acceptCallBtn =
+    document.getElementById("acceptCallBtn");
+
+const rejectCallBtn =
+    document.getElementById("rejectCallBtn");
+
+// Voice call
+document.getElementById("audioCallBtn").addEventListener("click", () => {
+    window.location.href =
+        `/calling?receiver_id=${receiver_id}&role=caller&type=audio`;
+});
+
+// Video call
+document.getElementById("videoCallBtn").addEventListener("click", () => {
+    window.location.href =
+        `/calling?receiver_id=${receiver_id}&role=caller&type=video`;
+});
+
+// Incoming call
+socket.on("incoming-call", (data) => {
+    console.log("Incoming call:", data);
+
+    incomingCallData = data;
+
+    sessionStorage.setItem(
+        "incomingOffer",
+        JSON.stringify(data.offer)
+    );
+
+    incomingCallName.textContent =
+        data.sender_name || "User";
+
+    if (data.call_type === "audio") {
+        incomingCallIcon.className =
+            "fas fa-phone";
+
+        incomingCallType.textContent =
+            "Voice Call";
+    } else {
+        incomingCallIcon.className =
+            "fas fa-video";
+
+        incomingCallType.textContent =
+            "Video Call";
+    }
+
+    incomingCallModal.style.display = "flex";
+});
+
+// Accept call
+acceptCallBtn.addEventListener("click", () => {
+    if (!incomingCallData) {
+        return;
+    }
+
+    const callType =
+        incomingCallData.call_type || "video";
+
+    const callerId =
+        incomingCallData.sender_id;
+
+    incomingCallModal.style.display = "none";
+
+    window.location.href =
+        `/calling?receiver_id=${callerId}` +
+        `&role=receiver` +
+        `&type=${callType}`;
+});
+
+// Reject call
+rejectCallBtn.addEventListener("click", () => {
+    if (!incomingCallData) {
+        return;
+    }
+
+    socket.emit("reject-call", {
+        caller_id: incomingCallData.sender_id,
+        receiver_id: sender_id
+    });
+
+    sessionStorage.removeItem("incomingOffer");
+
+    incomingCallData = null;
+
+    incomingCallModal.style.display = "none";
+});
+</script>
+
+</body>
+</html>

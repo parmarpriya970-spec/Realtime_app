@@ -1,0 +1,268 @@
+
+   <link rel="stylesheet" href="/style.css">
+   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.7/dist/css/bootstrap.min.css" rel="stylesheet">
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.7/dist/js/bootstrap.bundle.min.js"></script>
+
+<body>
+<div class="sidebar">
+<div class="sidebar-topbar">
+    <p class="sidebar-brand">Messenger</p>
+    <div class="sidebar-top-actions">
+        <div class="contacts-add">
+            <button type="button" class="contacts-add-btn" id="contactsAddBtn" aria-label="Add">
+                <i class="fas fa-plus"></i>
+            </button>
+            <div class="contacts-add-menu" id="contactsAddMenu">
+                <button type="button" data-bs-toggle="modal" data-bs-target="#addFriendModal">
+                    <i class="fas fa-user-plus"></i> Add Friend
+                </button>
+                <button type="button" data-bs-toggle="modal" data-bs-target="#createGroupModal">
+                    <i class="fas fa-users"></i> Create Group
+                </button>
+            </div>
+        </div>
+        <a href="/profile" class="sidebar-profile" title="My Profile">
+            <% if (typeof current_user_photo !== "undefined" && current_user_photo) { %>
+                <img src="/profile/<%= current_user_photo %>" alt="<%= current_user_name || 'Profile' %>">
+            <% } else { %>
+                <i class="fas fa-user"></i>
+            <% } %>
+        </a>
+    </div>
+</div>
+<div class="contacts-header">
+    <h2 class="contacts-title">Contacts</h2>
+</div>
+
+<!-- Modal -->
+<div class="modal fade" id="addFriendModal" tabindex="-1" aria-labelledby="addFriendModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+
+            <form action="/addfriend" method="POST">
+
+                <div class="modal-header">
+                    <h5 class="modal-title" id="addFriendModalLabel">
+                        <i class="fas fa-user-plus"></i> Add Friend
+                    </h5>
+
+                    <button type="button"
+                            class="btn-close"
+                            data-bs-dismiss="modal"></button>
+                </div>
+
+                <div class="modal-body">
+
+                    <div class="mb-3">
+                        <label class="form-label">Mobile Number</label>
+
+                        <input type="text"
+                               class="form-control"
+                               name="mobile"
+                               placeholder="Enter mobile number"
+                              >
+                    </div>
+
+                </div>
+
+                <div class="modal-footer">
+                   
+
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-paper-plane"></i> Send Request
+                    </button>
+                </div>
+
+            </form>
+
+        </div>
+    </div>
+</div>
+
+<!-- Create Group Modal -->
+<div class="modal fade" id="createGroupModal" tabindex="-1" aria-labelledby="createGroupModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered create-group-dialog">
+        <div class="modal-content">
+
+            <form action="/creategroup" method="POST">
+
+                <div class="modal-header">
+                    <h5 class="modal-title" id="createGroupModalLabel">
+                        <i class="fas fa-users"></i> Create Group
+                    </h5>
+
+                    <button type="button"
+                            class="btn-close"
+                            data-bs-dismiss="modal"></button>
+                </div>
+
+                <div class="modal-body">
+
+                    <div class="mb-2">
+                        <label class="form-label">Group Name</label>
+                        <input type="text"
+                               class="form-control form-control-sm"
+                               name="group_name"
+                               placeholder="Enter group name"
+                               required>
+                    </div>
+
+                    <label class="form-label">Select Friends</label>
+                    <div class="group-friends-list">
+                        <% contacts.forEach(friend => { %>
+                        <label class="group-friend-item">
+                            <input type="checkbox" name="friend_id" value="<%= friend.user_id %>">
+                            <span><%= friend.name %></span>
+                        </label>
+                        <% }) %>
+                    </div>
+
+                </div>
+
+                <div class="modal-footer">
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-check"></i> Create Group
+                    </button>
+                </div>
+
+            </form>
+
+        </div>
+    </div>
+</div>
+
+<% const selectedFriend = typeof receiver_id !== "undefined" ? String(receiver_id) : ""; %>
+<% const selectedGroup = typeof group_id !== "undefined" && group_id ? String(group_id) : ""; %>
+<div class="contacts-scroll">
+<div class="friends-list">
+<% contacts.forEach(contact => { %>
+    <a href="/chat/<%= contact.user_id %>"
+       class="friend-item<%= String(contact.user_id) === selectedFriend ? " selected" : "" %>"
+       data-user-id="<%= contact.user_id %>">
+
+       
+        <span class="friend-avatar">
+            <% if (contact.profile_photo) { %>
+                <img src="/profile/<%= contact.profile_photo %>" alt="<%= contact.name %>">
+            <% } else { %>
+                <i class="fas fa-user"></i>
+            <% } %>
+        </span>
+        <span class="friend-name"><%= contact.name %></span>
+        <span class="online-dot" title="Online"></span>
+    </a>
+<% }) %>
+</div>
+
+<div class="groups-list">
+<% (typeof groups !== "undefined" ? groups : []).forEach(group => { %>
+    <a href="/groupchat/<%= group.group_id %>"
+       class="group-item<%= String(group.group_id) === selectedGroup ? " selected" : "" %>"
+       data-group-id="<%= group.group_id %>">
+        <span class="friend-avatar">
+            <% if (group.group_profile) { %>
+                <img src="/profile/<%= group.group_profile %>" alt="<%= group.group_name %>">
+            <% } else { %>
+                <i class="fas fa-users"></i>
+            <% } %>
+        </span>
+        <span class="friend-name"><%= group.group_name %></span>
+    </a>
+<% }) %>
+</div>
+</div>
+<div class="invitations-list">
+<a href="/invitation">Invitations</a>
+<a href="/myInvitation">My Invitations</a>
+<a href="/logout">Logout</a>
+</div>
+</div>
+
+<script src="/socket.io/socket.io.js"></script>
+<script>
+(function () {
+    const addBtn = document.getElementById("contactsAddBtn");
+    const addMenu = document.getElementById("contactsAddMenu");
+
+    if (addBtn && addMenu) {
+        addBtn.addEventListener("click", function (event) {
+            event.stopPropagation();
+            addMenu.classList.toggle("open");
+        });
+
+        addMenu.querySelectorAll("button").forEach(function (button) {
+            button.addEventListener("click", function () {
+                addMenu.classList.remove("open");
+            });
+        });
+
+        document.addEventListener("click", function () {
+            addMenu.classList.remove("open");
+        });
+    }
+
+    const currentUserId = "<%= current_user_id || '' %>";
+    const currentUserName = "<%= current_user_name || 'User' %>";
+
+    if (!currentUserId) {
+        return;
+    }
+
+    const socket = io();
+    window.appSocket = socket;
+    window.__onlineUsers = [];
+
+    function setFriendOnline(userId, isOnline) {
+        const friendLink = document.querySelector(
+            '.friend-item[data-user-id="' + userId + '"]'
+        );
+        if (friendLink) {
+            friendLink.classList.toggle("is-online", isOnline);
+        }
+    }
+
+    function identifyUser() {
+        socket.emit("identify", {
+            user_id: currentUserId,
+            name: currentUserName
+        });
+    }
+
+    if (socket.connected) {
+        identifyUser();
+    }
+    socket.on("connect", identifyUser);
+
+    socket.on("online_users", function (onlineUsers) {
+        window.__onlineUsers = onlineUsers || [];
+
+        document.querySelectorAll(".friend-item").forEach(function (item) {
+            item.classList.remove("is-online");
+        });
+
+        window.__onlineUsers.forEach(function (user) {
+            if (String(user.user_id) !== String(currentUserId)) {
+                setFriendOnline(user.user_id, true);
+            }
+        });
+
+        window.dispatchEvent(new CustomEvent("presence:online_users", {
+            detail: window.__onlineUsers
+        }));
+    });
+
+    socket.on("user_online", function (data) {
+        if (String(data.user_id) !== String(currentUserId)) {
+            setFriendOnline(data.user_id, true);
+        }
+        window.dispatchEvent(new CustomEvent("presence:user_online", { detail: data }));
+    });
+
+    socket.on("user_offline", function (data) {
+        setFriendOnline(data.user_id, false);
+        window.dispatchEvent(new CustomEvent("presence:user_offline", { detail: data }));
+    });
+})();
+</script>
+</body>
