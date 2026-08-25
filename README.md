@@ -34,6 +34,7 @@ Socket.IO manages real-time events between connected users. For calling, Socket.
 
 ## WebRTC Calling
 <img width="1366" height="642" alt="fbg " src="https://github.com/user-attachments/assets/81819a0e-12a7-4c4f-88ba-56531768f08e" />
+<img width="1351" height="635" alt="dfjdkl" src="https://github.com/user-attachments/assets/0b311078-dddb-432c-b27d-7c24c35ef5e6" />
 
 The calling system uses `RTCPeerConnection`, `getUserMedia()`, offer/answer negotiation, ICE candidate exchange, and a STUN server to establish audio and video communication between users.
 
